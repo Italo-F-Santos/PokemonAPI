@@ -31,9 +31,9 @@ namespace PokemonAPI.Controllers
         public async Task<IActionResult> GetPokemon(string name)
         {
             var pokemon = await _pokemonService.GetPokemonInfoAsync(name);
-            if (pokemon == null)
+            if (!pokemon.Success)
             {
-                return NotFound(new { message = "Pokémon not found." });
+                return StatusCode(pokemon.StatusCode, pokemon.Result);
             }
             return Ok(pokemon);
         }
@@ -48,9 +48,9 @@ namespace PokemonAPI.Controllers
         public async Task<IActionResult> GetPokemonList(int limit = 10, int offset = 0)
         {
             var pokemonList = await _pokemonService.GetPokemonListAsync(limit, offset);
-            if (pokemonList == null)
+            if (!pokemonList.Success)
             {
-                return BadRequest(new { message = "Error fetching Pokémon list." });
+                return StatusCode(pokemonList.StatusCode, pokemonList.Result);
             }
             return Ok(pokemonList);
         }

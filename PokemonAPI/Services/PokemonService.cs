@@ -28,78 +28,67 @@ namespace PokemonAPI
         /// </summary>
         /// <param name="name">Nome do Pokémon a ser buscado.</param>
         /// <returns>Objeto <see cref="PokemonInfo"/> contendo detalhes do Pokémon.</returns>
-        public async Task<PokemonInfo> GetPokemonInfoAsync(string name)
+        public async Task<(bool Success, object Result, int StatusCode)> GetPokemonInfoAsync(string name)
         {
-            // Faz uma requisição HTTP para obter os dados do Pokémon.
             var response = await _httpClient.GetAsync($"https://pokeapi.co/api/v2/pokemon/{name}");
 
-            // Se a requisição falhar, retorna null.
             if (!response.IsSuccessStatusCode)
             {
-                return null;
+                var errorMessage = response.Content != null
+                    ? await response.Content.ReadAsStringAsync()
+                    : "No error details provided.";
+
+                return (false, new { error = errorMessage }, (int)response.StatusCode);
             }
 
-            // Lê a resposta da API e converte para JSON.
             var data = await response.Content.ReadAsStringAsync();
             var json = JsonDocument.Parse(data).RootElement;
 
-            // Retorna um objeto contendo todas as informações extraídas do JSON.
-            return new PokemonInfo
+            var pokemonInfo = new PokemonInfo
             {
                 Name = json.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : "Unknown",
                 BaseExperience = json.TryGetProperty("base_experience", out var expProp) ? expProp.GetInt32() : 0,
                 Height = json.TryGetProperty("height", out var heightProp) ? heightProp.GetInt32() : 0,
                 Weight = json.TryGetProperty("weight", out var weightProp) ? weightProp.GetInt32() : 0,
 
-                /// <summary>
-                /// Lista das habilidades do Pokémon.
-                /// </summary>
+                // Lista das habilidades do Pokémon
                 Abilities = json.TryGetProperty("abilities", out var abilitiesProp)
                     ? abilitiesProp.EnumerateArray()
-                        .Where(a => a.TryGetProperty("ability", out var ability) && ability.TryGetProperty("name", out var abilityName))
                         .Select(a => a.GetProperty("ability").GetProperty("name").GetString())
                         .ToList()
                     : new List<string>(),
 
-                /// <summary>
-                /// Lista dos primeiros 10 golpes disponíveis do Pokémon.
-                /// </summary>
+                // Lista dos primeiros 10 golpes disponíveis do Pokémon
                 Moves = json.TryGetProperty("moves", out var movesProp)
                     ? movesProp.EnumerateArray()
                         .Take(10) // Pegamos apenas os 10 primeiros para não sobrecarregar
-                        .Where(m => m.TryGetProperty("move", out var move) && move.TryGetProperty("name", out var moveName))
                         .Select(m => m.GetProperty("move").GetProperty("name").GetString())
                         .ToList()
                     : new List<string>(),
 
-                /// <summary>
-                /// Itens que o Pokémon pode segurar.
-                /// </summary>
+                // Itens que o Pokémon pode segurar
                 HeldItems = json.TryGetProperty("held_items", out var itemsProp)
                     ? itemsProp.EnumerateArray()
-                        .Where(i => i.TryGetProperty("item", out var item) && item.TryGetProperty("name", out var itemName))
                         .Select(i => i.GetProperty("item").GetProperty("name").GetString())
                         .ToList()
                     : new List<string>(),
 
-                /// <summary>
-                /// Espécie do Pokémon.
-                /// </summary>
-                Species = json.TryGetProperty("species", out var speciesProp) && speciesProp.TryGetProperty("name", out var speciesName)
+                // Espécie do Pokémon
+                Species = json.TryGetProperty("species", out var speciesProp)
                     ? speciesProp.GetProperty("name").GetString()
                     : "Unknown",
 
-                /// <summary>
-                /// Tipos do Pokémon (exemplo: Fogo, Água, Planta).
-                /// </summary>
+                // Tipos do Pokémon (exemplo: Fogo, Água, Planta)
                 Types = json.TryGetProperty("types", out var typesProp)
                     ? typesProp.EnumerateArray()
-                        .Where(t => t.TryGetProperty("type", out var type) && type.TryGetProperty("name", out var typeName))
                         .Select(t => t.GetProperty("type").GetProperty("name").GetString())
                         .ToList()
                     : new List<string>()
             };
+
+            return (true, pokemonInfo, (int)response.StatusCode);
         }
+
 
 
         /// <summary>
@@ -108,18 +97,37 @@ namespace PokemonAPI
         /// <param name="limit">Número de Pokémon a serem retornados (padrão: 10).</param>
         /// <param name="offset">Número de Pokémon a serem ignorados antes de começar a listar (padrão: 0).</param>
         /// <returns>Objeto JSON contendo a lista de Pokémon.</returns>
-        public async Task<JsonElement?> GetPokemonListAsync(int limit = 10, int offset = 0)
+        public async Task<(bool Success, object Result, int StatusCode)> GetPokemonListAsync(int limit = 10, int offset = 0)
         {
             var response = await _httpClient.GetAsync($"https://pokeapi.co/api/v2/pokemon?limit={limit}&offset={offset}");
 
             if (!response.IsSuccessStatusCode)
             {
-                return null;
+                // Verifica se a resposta tem um corpo válido antes de ler
+                var errorMessage = response.Content != null
+                    ? await response.Content.ReadAsStringAsync()
+                    : "No error details provided.";
+
+                return response.StatusCode switch
+                {
+                    System.Net.HttpStatusCode.BadRequest => (false, new { error = "Invalid request parameters." }, 400),
+                    System.Net.HttpStatusCode.NotFound => (false, new { error = "Pokémon list not found." }, 404),
+                    System.Net.HttpStatusCode.InternalServerError => (false, new { error = "Internal Server Error at PokeAPI." }, 500),
+                    _ => (false, new { error = $"Unexpected error: {errorMessage}" }, (int)response.StatusCode)
+                };
             }
 
             var data = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<JsonElement>(data);
+            var json = JsonDocument.Parse(data).RootElement;
+
+            var pokemonList = json.GetProperty("results")
+                                  .EnumerateArray()
+                                  .Select(p => p.GetProperty("name").GetString())
+                                  .ToList();
+
+            return (true, new { pokemon = pokemonList }, 200);
         }
+
 
 
     }
