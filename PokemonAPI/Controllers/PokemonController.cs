@@ -35,7 +35,7 @@ namespace PokemonAPI.Controllers
             {
                 return StatusCode(pokemon.StatusCode, pokemon.Result);
             }
-            return Ok(pokemon);
+            return Ok(pokemon.Result);
         }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace PokemonAPI.Controllers
             {
                 return StatusCode(pokemonList.StatusCode, pokemonList.Result);
             }
-            return Ok(pokemonList);
+            return Ok(pokemonList.Result);
         }
     }
 }
