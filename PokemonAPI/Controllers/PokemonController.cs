@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
-using System.Threading.Tasks;
+using PokemonAPI.Application.Services;
 
 namespace PokemonAPI.Controllers
 {
@@ -11,15 +10,15 @@ namespace PokemonAPI.Controllers
     [Route("api/pokemon")]
     public class PokemonController : ControllerBase
     {
-        private readonly PokemonService _pokemonService;
+        private readonly PokemonApplicationService _pokemonApplicationService;
 
         /// <summary>
         /// Construtor do controlador de Pokémon.
         /// </summary>
-        /// <param name="pokemonService">Serviço responsável pela comunicação com a PokeAPI.</param>
-        public PokemonController(PokemonService pokemonService)
+        /// <param name="pokemonApplicationService">Serviço de aplicação responsável pela lógica de negócio.</param>
+        public PokemonController(PokemonApplicationService pokemonApplicationService)
         {
-            _pokemonService = pokemonService;
+            _pokemonApplicationService = pokemonApplicationService;
         }
 
         /// <summary>
@@ -30,12 +29,12 @@ namespace PokemonAPI.Controllers
         [HttpGet("{name}")]
         public async Task<IActionResult> GetPokemon(string name)
         {
-            var pokemon = await _pokemonService.GetPokemonInfoAsync(name);
-            if (!pokemon.Success)
+            var result = await _pokemonApplicationService.GetPokemonAsync(name);
+            if (!result.Success)
             {
-                return StatusCode(pokemon.StatusCode, pokemon.Result);
+                return StatusCode(result.StatusCode, result.Result);
             }
-            return Ok(pokemon.Result);
+            return Ok(result.Result);
         }
 
         /// <summary>
@@ -47,12 +46,12 @@ namespace PokemonAPI.Controllers
         [HttpGet("list")]
         public async Task<IActionResult> GetPokemonList(int limit = 10, int offset = 0)
         {
-            var pokemonList = await _pokemonService.GetPokemonListAsync(limit, offset);
-            if (!pokemonList.Success)
+            var result = await _pokemonApplicationService.GetPokemonListAsync(limit, offset);
+            if (!result.Success)
             {
-                return StatusCode(pokemonList.StatusCode, pokemonList.Result);
+                return StatusCode(result.StatusCode, result.Result);
             }
-            return Ok(pokemonList.Result);
+            return Ok(result.Result);
         }
     }
 }

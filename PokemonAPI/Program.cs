@@ -1,14 +1,20 @@
-using PokemonAPI;
+using PokemonAPI.Application.Services;
+using PokemonAPI.Domain.Interfaces;
+using PokemonAPI.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Adicionando serviços ao contêiner
+// Adicionando serviï¿½os ao contï¿½iner
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<PokemonService>();
-builder.Services.AddHttpClient<PokemonService>();
+// ConfiguraÃ§Ã£o DDD - Repository Pattern
+builder.Services.AddHttpClient<PokemonRepository>();
+builder.Services.AddScoped<IPokemonRepository, PokemonRepository>();
+// Alternative mock implementation for testing (uncomment if external API is not accessible):
+// builder.Services.AddScoped<IPokemonRepository, MockPokemonRepository>();
+builder.Services.AddScoped<PokemonApplicationService>();
 var app = builder.Build();
 
 // Configurando o pipeline HTTP
